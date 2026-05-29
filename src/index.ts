@@ -1,7 +1,7 @@
 import "dotenv/config";
 import fs from "node:fs";
 import path from "node:path";
-import cors from "cors";
+import cors, { type CorsOptions } from "cors";
 import express from "express";
 import { auditLogsRouter } from "./routes/auditLogs.js";
 import { analyticsRouter } from "./routes/analytics.js";
@@ -18,16 +18,32 @@ import { usersRouter } from "./routes/users.js";
 const app = express();
 const port = Number(process.env.PORT || 4000);
 const uploadDir = path.resolve(process.env.UPLOAD_DIR || "src/uploads");
+const productionFrontendUrl = process.env.FRONTEND_URL || "https://hiremind-frontend-dun.vercel.app";
+const allowedOrigins = new Set([
+  productionFrontendUrl,
+  "https://hiremind-frontend-dun.vercel.app",
+  "http://localhost:5173",
+  "http://127.0.0.1:5173",
+  "http://localhost:8080",
+  "http://127.0.0.1:8080",
+].filter(Boolean));
 
 fs.mkdirSync(uploadDir, { recursive: true });
 
-app.use(cors({
+const corsOptions: CorsOptions = {
   origin(origin, callback) {
-    if (!origin || /^http:\/\/(localhost|127\.0\.0\.1):\d+$/.test(origin)) return callback(null, true);
+    console.log(`[cors] request origin: ${origin || "no-origin"}`);
+
+    if (!origin || allowedOrigins.has(origin)) return callback(null, true);
+
     return callback(new Error(`CORS blocked for origin ${origin}`));
   },
   credentials: true,
-}));
+  optionsSuccessStatus: 204,
+};
+
+app.use(cors(corsOptions));
+app.options("*", cors(corsOptions));
 app.use(express.json({ limit: "5mb" }));
 app.use(express.urlencoded({ extended: true }));
 
